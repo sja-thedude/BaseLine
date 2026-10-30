@@ -80,7 +80,7 @@ export async function pollAnalysis(key: string, taskId: string): Promise<TaskSta
   let overall: number | undefined;
   let skinAge: number | undefined;
   for (const o of data.results?.output ?? []) {
-    if (o.type === "all" && typeof o.score === "number") overall = o.score;
+    if (o.type === "all") overall = o.score ?? o.raw_score;
     else if (o.type === "skin_age") skinAge = o.score ?? o.raw_score;
     else if ((CONCERNS as readonly string[]).includes(o.type) && (!o.region || o.region === "whole")) {
       if (typeof o.raw_score === "number") scores[o.type as Concern] = { raw: o.raw_score, ui: o.ui_score };
