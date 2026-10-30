@@ -79,12 +79,12 @@ Baseline reports what YouCam Skin AI measured and how it changed. It doesn't dia
 
 - **YouCam Skin AI** (`/s2s/v2.0/file` → `/s2s/v2.0/task/skin-analysis`), SD, 8 concerns, 12 units per photo.
 - Results are cached in Workers KV by image hash, so re-runs cost nothing.
-- A shared budget (`UNIT_BUDGET`, default 900 of the 1,000 free units) and a daily per-visitor cap (`PER_VISITOR_DAILY`, default 12 photos) keep the demo available to everyone. Units are reserved when a task starts and refunded if it fails. KV has no atomic increment, so when two analyses finish at the same moment the shared counter can undercount by one photo. That's why 100 units stay in reserve.
+- A shared budget (`UNIT_BUDGET`, default 900 of the 1,000 free units) and a daily per-visitor cap (`PER_VISITOR_DAILY`, default 12 photos) keep the demo available to everyone. Units are reserved before a task starts and refunded if it fails. The spend and visitor counts live in a single Durable Object, so the budget check and the reservation happen in one step, even when many visitors run at once.
 
 ## Stack
 
 - React 18 + TypeScript + Vite, plain CSS design system (Fraunces, IBM Plex Sans and Mono), hand-drawn SVG illustrations and charts
-- Cloudflare Workers (API + static assets), Workers KV (score cache, unit counter), Workers AI (`llama-3.3-70b-instruct-fp8-fast`)
+- Cloudflare Workers (API + static assets), Workers KV (score cache), a Durable Object (atomic unit ledger), Workers AI (`llama-3.3-70b-instruct-fp8-fast`)
 - MediaPipe Tasks Vision face detector, on device
 - exifr (lite) for EXIF dates
 

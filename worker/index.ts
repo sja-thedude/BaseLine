@@ -14,10 +14,14 @@
 import { UNITS_PER_PHOTO, type AnalyzeResponse, type ReportRequest, type SkinResult, type StatusResponse } from "../shared/types";
 import { ERROR_TEXT, YouCamError, pollAnalysis, startAnalysis } from "./youcam";
 import { writeReport } from "./report";
+import type { Ledger } from "./ledger";
+
+export { Ledger } from "./ledger";
 
 export interface Env {
   ASSETS: Fetcher;
   CACHE: KVNamespace;
+  LEDGER: DurableObjectNamespace<Ledger>;
   AI?: Ai;
   YOUCAM_API_KEY?: string;
   UNIT_BUDGET?: string;
@@ -48,15 +52,8 @@ async function visitorKey(req: Request) {
   return `v:${today()}:${(await sha256(`baseline:${today()}:${ip}`)).slice(0, 24)}`;
 }
 
-async function readInt(kv: KVNamespace, key: string) {
-  return parseInt((await kv.get(key)) || "0", 10) || 0;
-}
-
-async function addUnits(env: Env, delta: number) {
-  const spent = Math.max(0, (await readInt(env.CACHE, "units:spent")) + delta);
-  await env.CACHE.put("units:spent", String(spent));
-  return spent;
-}
+/** The one ledger instance that holds the shared spend and visitor counts. */
+const ledger = (env: Env) => env.LEDGER.get(env.LEDGER.idFromName("units"));
 
 function limits(env: Env) {
   return {
@@ -67,13 +64,14 @@ function limits(env: Env) {
 
 async function status(req: Request, env: Env): Promise<Response> {
   const { budget, perVisitor } = limits(env);
+  const counts = await ledger(env).status(await visitorKey(req));
   const body: StatusResponse = {
     configured: Boolean(env.YOUCAM_API_KEY),
-    unitsSpent: await readInt(env.CACHE, "units:spent"),
+    unitsSpent: counts.spent,
     unitsBudget: budget,
     unitsPerPhoto: UNITS_PER_PHOTO,
     perVisitorDaily: perVisitor,
-    visitorUsedToday: await readInt(env.CACHE, await visitorKey(req)),
+    visitorUsedToday: counts.used,
   };
   return json(body);
 }
@@ -104,24 +102,22 @@ async function analyze(req: Request, env: Env): Promise<Response> {
   if (!env.YOUCAM_API_KEY) return fail(503, "not_configured", "Skin analysis isn't switched on for this deployment yet.");
 
   const { budget, perVisitor } = limits(env);
-  const spent = await readInt(env.CACHE, "units:spent");
-  if (spent + UNITS_PER_PHOTO > budget) {
+  const vKey = await visitorKey(req);
+  // Reserve before starting, atomically; refunded if the start or the task fails.
+  const held = await ledger(env).reserve(vKey, UNITS_PER_PHOTO, budget, perVisitor);
+  if (!held.ok && held.reason === "budget") {
     return fail(402, "budget", "The shared analysis budget for this demo has run out. Cached results still work.");
   }
-  const vKey = await visitorKey(req);
-  const used = await readInt(env.CACHE, vKey);
-  if (used >= perVisitor) {
+  if (!held.ok) {
     return fail(429, "visitor_limit", `Each visitor can measure ${perVisitor} new photos a day, so the demo budget lasts for everyone.`);
   }
 
   try {
     const taskId = await startAnalysis(env.YOUCAM_API_KEY, image, type);
-    // Reserve the units now; they are refunded if the task errors.
-    await addUnits(env, UNITS_PER_PHOTO);
-    await env.CACHE.put(vKey, String(used + 1), { expirationTtl: 60 * 60 * 48 });
     await env.CACHE.put(`t:${taskId}`, JSON.stringify({ hash }), { expirationTtl: 60 * 60 * 24 });
     return json({ status: "running", taskId, hash } satisfies AnalyzeResponse);
   } catch (e) {
+    await ledger(env).release(UNITS_PER_PHOTO, vKey);
     if (e instanceof YouCamError) return fail(e.status, e.code, e.message);
     throw e;
   }
@@ -139,7 +135,7 @@ async function task(env: Env, taskId: string): Promise<Response> {
     if (state.state === "error") {
       // YouCam doesn't charge for failed tasks, so release the reservation once.
       if (!meta.settled) {
-        await addUnits(env, -UNITS_PER_PHOTO);
+        await ledger(env).release(UNITS_PER_PHOTO);
         await env.CACHE.put(`t:${taskId}`, JSON.stringify({ ...meta, settled: true }), { expirationTtl: 60 * 60 * 24 });
       }
       return json({
