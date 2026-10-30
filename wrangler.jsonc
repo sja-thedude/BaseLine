@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "baseline",
+  "account_id": "60bc0d18ed5229edce6eb9712d7900d9",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-04-05",
+  "workers_dev": true,
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // /api/* must reach the worker; everything else is served straight from dist.
+    "run_worker_first": ["/api/*"]
+  },
+  // Scores only, keyed by image SHA-256, plus the shared unit counter.
+  "kv_namespaces": [{ "binding": "CACHE", "id": "b0defbe77c1044649091ce32dee2c910" }],
+  // Writes the plain-language summary from the computed findings.
+  "ai": { "binding": "AI" },
+  "vars": {
+    // Of the 1,000 free YouCam units, 900 are open to visitors; 100 stay in reserve.
+    "UNIT_BUDGET": "900",
+    "PER_VISITOR_DAILY": "12"
+  },
+  // Request logs only; bodies (photos) are never logged.
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}
