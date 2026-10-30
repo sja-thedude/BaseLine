@@ -25,14 +25,28 @@ Answering "did it work?" needs a measurement taken months ago, and nobody thinks
 
 Everything the agent does is shown in the **"How this was worked out"** panel: each step, decision, unit spent and warning, in order.
 
-![Results with charts, summary and agent log](docs/results.jpg)
+### From a real run
+
+These screenshots come from a real run on the live site. Six photos were measured by YouCam Skin AI for 72 units, and the summary was written by Workers AI and passed the number check.
+
+![Photo timeline after screening, with the agent log explaining each decision](docs/screening.jpg)
+
+Screening kept 6 of 10 photos. It set aside one too dark, two too blurred and an exact duplicate, all before spending a unit.
+
+![Eight concerns plotted over 18 months with trend lines, noise bands and routine events](docs/charts.jpg)
+
+![Summary with the dermatologist callout and keep, reconsider and test columns](docs/summary.jpg)
+
+Five concerns measured worse in this set, so the summary points to a dermatologist rather than a product. The early photos were softer, and YouCam scored them as smoother skin.
+
+![Next check-in date with tailored photo instructions](docs/checkin.jpg)
 
 <p>
   <img src="docs/mobile-dark-charts.jpg" alt="Charts on a phone in dark mode" width="300" />
   <img src="docs/mobile-dark-checkin.jpg" alt="Next check-in card on a phone in dark mode" width="300" />
 </p>
 
-<sub>The results screenshots use illustrative test scores. No real faces appear anywhere in this repo.</sub>
+<sub>The photos are edited copies of one synthetic, AI-generated face. They vary the lighting, colour and focus, and each date is set in the filename. Every thumbnail is blurred. No real person's face appears anywhere in this repo.</sub>
 
 ## The agent loop
 
@@ -65,7 +79,7 @@ Baseline reports what YouCam Skin AI measured and how it changed. It doesn't dia
 
 - **YouCam Skin AI** (`/s2s/v2.0/file` → `/s2s/v2.0/task/skin-analysis`), SD, 8 concerns, 12 units per photo.
 - Results are cached in Workers KV by image hash, so re-runs cost nothing.
-- A shared budget (`UNIT_BUDGET`, default 900 of the 1,000 free units) and a daily per-visitor cap (`PER_VISITOR_DAILY`, default 12 photos) keep the demo available to everyone. Units are reserved when a task starts and refunded if it fails.
+- A shared budget (`UNIT_BUDGET`, default 900 of the 1,000 free units) and a daily per-visitor cap (`PER_VISITOR_DAILY`, default 12 photos) keep the demo available to everyone. Units are reserved when a task starts and refunded if it fails. KV has no atomic increment, so when two analyses finish at the same moment the shared counter can undercount by one photo. That's why 100 units stay in reserve.
 
 ## Stack
 
