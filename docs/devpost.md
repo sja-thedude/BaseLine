@@ -1,6 +1,7 @@
 # Baseline: is your skincare working?
 
 **Live:** https://baseline.sja-affu765.workers.dev
+**Demo video:** https://youtu.be/KAFX4kKeHpg
 **Code (MIT):** https://github.com/sja-thedude/BaseLine
 
 ## Inspiration

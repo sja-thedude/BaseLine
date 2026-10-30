@@ -2,6 +2,8 @@
 
 **Live: [https://baseline.sja-affu765.workers.dev](https://baseline.sja-affu765.workers.dev)**
 
+**Demo video (2:29): [https://youtu.be/KAFX4kKeHpg](https://youtu.be/KAFX4kKeHpg)**
+
 Retroactive skincare efficacy tracking. Upload selfies you already have, and Baseline measures your skin in each one with **YouCam Skin AI**, plots every concern over real time, and shows which routine changes line up with what changed.
 
 ![Baseline home page](docs/hero.jpg)
