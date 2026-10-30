@@ -12,8 +12,11 @@
     // /api/* must reach the worker; everything else is served straight from dist.
     "run_worker_first": ["/api/*"]
   },
-  // Scores only, keyed by image SHA-256, plus the shared unit counter.
+  // Scores only, keyed by image SHA-256, and the task map.
   "kv_namespaces": [{ "binding": "CACHE", "id": "b0defbe77c1044649091ce32dee2c910" }],
+  // Shared unit spend and visitor counts, updated atomically.
+  "durable_objects": { "bindings": [{ "name": "LEDGER", "class_name": "Ledger" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Ledger"] }],
   // Writes the plain-language summary from the computed findings.
   "ai": { "binding": "AI" },
   "vars": {
